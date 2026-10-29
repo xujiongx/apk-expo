@@ -1,7 +1,7 @@
 {
   "expo": {
-    "name": "apk",
-    "slug": "apk",
+    "name": "APK Demo",
+    "slug": "apk-demo",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
@@ -10,8 +10,10 @@
       "supportsTablet": true
     },
     "android": {
+      "package": "com.example.apkdemo",
+      "versionCode": 1,
       "adaptiveIcon": {
-        "backgroundColor": "#E6F4FE",
+        "backgroundColor": "#E8F1F0",
         "foregroundImage": "./assets/android-icon-foreground.png",
         "backgroundImage": "./assets/android-icon-background.png",
         "monochromeImage": "./assets/android-icon-monochrome.png"
@@ -20,6 +22,15 @@
     },
     "web": {
       "favicon": "./assets/favicon.png"
-    }
+    },
+    "plugins": [
+      "expo-sharing"
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "2a6d4fc8-96d8-4cac-ae9b-ca40d12d747e"
+      }
+    },
+    "owner": "xujiong"
   }
 }

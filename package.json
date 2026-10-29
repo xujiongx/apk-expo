@@ -1,22 +1,36 @@
 {
   "name": "apk",
   "version": "1.0.0",
+  "packageManager": "pnpm@12.14.0",
   "main": "index.ts",
   "dependencies": {
     "expo": "~58.0.21",
+    "expo-application": "~58.1.2",
+    "expo-battery": "~58.0.3",
+    "expo-brightness": "~58.0.2",
+    "expo-clipboard": "~58.0.4",
+    "expo-device": "~58.0.5",
+    "expo-haptics": "~58.0.7",
+    "expo-network": "~58.0.4",
+    "expo-sensors": "~58.0.4",
+    "expo-sharing": "~58.0.21",
     "expo-status-bar": "~58.0.4",
     "react": "19.3.0",
-    "react-native": "0.88.1"
+    "react-dom": "19.3.0",
+    "react-native": "0.88.1",
+    "react-native-web": "^0.21.4"
   },
   "devDependencies": {
     "@types/react": "~19.3.0",
+    "eas-cli": "^26.0.0",
     "typescript": "~6.0.3"
   },
   "scripts": {
     "start": "expo start",
     "android": "expo start --android",
     "ios": "expo start --ios",
-    "web": "expo start --web"
+    "web": "expo start --web",
+    "build:apk": "eas build -p android --profile preview"
   },
   "private": true
 }
