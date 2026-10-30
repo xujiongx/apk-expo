@@ -219,16 +219,6 @@ export function KuaishouScreen({ onBack }: { onBack: () => void }) {
             />
           </View>
         </Panel>
-
-        <Panel label="为什么无障碍会自己关掉">
-          <Text style={styles.body}>
-            1. 每次覆盖安装 / 升级 APK，安卓都会自动关闭该应用的无障碍，需要重新打开。{'\n'}
-            2. 小米 / 华为 / OPPO / vivo 等省电策略会杀后台服务。{'\n'}
-            3. 在系统里「强制停止」应用，无障碍也会被关。{'\n'}
-            建议：忽略电池优化，并在手机管家里允许自启动 / 关联启动。
-          </Text>
-        </Panel>
-
         <View style={styles.actions}>
           <Button
             label={running ? '执行中…' : '自动签到'}

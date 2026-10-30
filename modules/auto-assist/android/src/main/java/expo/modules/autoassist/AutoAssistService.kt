@@ -52,13 +52,27 @@ class AutoAssistService : AccessibilityService() {
   private var lastClickAt = 0L
   private var pollCount = 0
   private var adsClicks = 0
-  private var earnClicked = false
+  private var earnTapCount = 0
   private var signClicked = false
   private var dumped = false
 
+  private val enterAdsRunnable = Runnable {
+    if (phase == Phase.IDLE) return@Runnable
+    phase = Phase.SKIP_ADS
+    pollCount = 0
+    emit("ads", "开始自动跳过广告 / 弹窗", true)
+    startPolling()
+  }
+
+  private val timeoutRunnable = Runnable {
+    if (phase == Phase.IDLE || phase == Phase.DONE) return@Runnable
+    finishTask(signClicked, "流程超时结束（签到=${if (signClicked) "可能已点" else "未确认"}）")
+  }
+
   private fun pollIntervalMs(): Long = when (phase) {
-    Phase.GO_EARN, Phase.SIGN -> 120L
-    else -> 180L
+    Phase.GO_EARN -> 220L
+    Phase.SIGN -> 180L
+    else -> 200L
   }
 
   private val pollRunnable = object : Runnable {
@@ -93,29 +107,18 @@ class AutoAssistService : AccessibilityService() {
   }
 
   private fun beginTask() {
-    stopPolling()
+    clearTaskCallbacks()
     pollCount = 0
     adsClicks = 0
-    earnClicked = false
+    earnTapCount = 0
     signClicked = false
     dumped = false
     phase = Phase.WAIT_APP
     emit("open", "正在打开快手极速版…", true)
     launchTarget()
-    // 冷启动也尽快进广告/赚钱；首屏慢时靠轮询补点
-    mainHandler.postDelayed({
-      if (phase == Phase.IDLE) return@postDelayed
-      phase = Phase.SKIP_ADS
-      pollCount = 0
-      emit("ads", "开始自动跳过广告 / 弹窗", true)
-      startPolling()
-    }, 500L)
-
-    // 整体超时保护
-    mainHandler.postDelayed({
-      if (phase == Phase.IDLE || phase == Phase.DONE) return@postDelayed
-      finishTask(signClicked, "流程超时结束（签到=${if (signClicked) "可能已点" else "未确认"}）")
-    }, 18000L)
+    // 等首屏起来再点；过早点 Tab 会落在开屏上然后直接进签到，后续全失效
+    mainHandler.postDelayed(enterAdsRunnable, 1200L)
+    mainHandler.postDelayed(timeoutRunnable, 25000L)
   }
 
   private fun startPolling() {
@@ -123,9 +126,14 @@ class AutoAssistService : AccessibilityService() {
     mainHandler.post(pollRunnable)
   }
 
-  private fun stopPolling() {
+  private fun clearTaskCallbacks() {
     mainHandler.removeCallbacks(pollRunnable)
-    mainHandler.removeCallbacksAndMessages(null)
+    mainHandler.removeCallbacks(enterAdsRunnable)
+    mainHandler.removeCallbacks(timeoutRunnable)
+  }
+
+  private fun stopPolling() {
+    clearTaskCallbacks()
   }
 
   private fun launchTarget() {
@@ -147,7 +155,6 @@ class AutoAssistService : AccessibilityService() {
   private fun runPhaseOnce() {
     when (phase) {
       Phase.WAIT_APP -> {
-        // 启动后抢先点掉开屏广告
         clickByKeywords(listOf("跳过", "关闭广告", "我知道了"))
       }
       Phase.SKIP_ADS -> {
@@ -158,34 +165,39 @@ class AutoAssistService : AccessibilityService() {
           adsClicks += 1
           emit("ads", "已处理弹窗/广告 ($adsClicks)", true)
         }
-        // 最多再补一轮，然后立刻切赚钱 Tab（空等是慢的主因）
-        if (hit && pollCount < 2) return
-        phase = Phase.GO_EARN
-        pollCount = 0
-        emit("earn", "尝试进入「去赚钱」", true)
+        // 给首页 Tab 露出时间：约 0.8–1.2s，点到广告则多留一轮
+        val ready = (adsClicks > 0 && pollCount >= 3) || pollCount >= 5
+        if (ready) {
+          phase = Phase.GO_EARN
+          pollCount = 0
+          emit("earn", "尝试进入「去赚钱」", true)
+          maybeDumpNodes()
+        }
       }
       Phase.GO_EARN -> {
-        if (!earnClicked) {
-          // 按实机截图校准：5 Tab 最右侧「去赚钱」≈ x0.90；
-          // 图标/文字带约在 y0.94（再往下是空白/手势条，点 0.95+ 会落空）
-          tapEarnTab()
-          earnClicked = true
-          emit("earn", "已点击右下角赚钱 Tab", true)
-          mainHandler.postDelayed({
-            if (phase == Phase.GO_EARN || phase == Phase.SIGN) {
-              tapEarnTab(retry = true)
-            }
-          }, 200L)
+        // 停留在本阶段多次点 Tab，避免首屏未就绪点空后永远不再试
+        if (pollCount == 1 || pollCount == 3 || pollCount == 5 || pollCount == 7) {
+          val ok = tapEarnTab(attempt = earnTapCount)
+          earnTapCount += 1
+          emit("earn", "点击赚钱 Tab (#$earnTapCount)${if (ok) "" else "（手势未接受，将重试）"}", ok)
         }
-        // 同一次轮询即可进入签到探测
-        if (earnClicked) {
+        // 已看到签到相关文案，或已点过几次并等待页面切换
+        val signVisible = hasAnyKeyword(listOf("立即签到", "签到领金币", "今日签到", "签到"))
+        val pageReady = earnTapCount >= 2 && pollCount >= 8
+        if (signVisible || pageReady || pollCount >= 12) {
           phase = Phase.SIGN
           pollCount = 0
-          emit("sign", "尝试点击签到", true)
+          emit("sign", if (signVisible) "已进入赚钱页，尝试签到" else "尝试点击签到", true)
+          maybeDumpNodes()
         }
       }
       Phase.SIGN -> {
         if (!signClicked) {
+          // 赚钱页若还没切过来，顺手再点一次 Tab
+          if (pollCount == 1 || pollCount == 4) {
+            tapEarnTab(attempt = earnTapCount)
+            earnTapCount += 1
+          }
           val hit = clickByKeywords(
             listOf("立即签到", "签到领金币", "签到", "打卡", "领金币")
           )
@@ -195,19 +207,21 @@ class AutoAssistService : AccessibilityService() {
             mainHandler.postDelayed({
               clickByKeywords(listOf("我知道了", "开心收下", "知道了", "确定", "关闭"))
               finishTask(true, "签到流程已执行")
-            }, 500L)
+            }, 600L)
             return
-          } else if (pollCount == 2) {
+          } else if (pollCount == 6) {
             tapRatio(0.50f, 0.22f)
             emit("sign", "未识别签到文案，已尝试点击上方区域", true)
-          } else if (pollCount == 4) {
+          } else if (pollCount == 10) {
             tapRatio(0.50f, 0.30f)
+          } else if (pollCount == 14) {
+            tapRatio(0.50f, 0.38f)
           }
         } else if (pollCount >= 2) {
           finishTask(true, "签到流程已执行")
           return
         }
-        if (pollCount >= 8) {
+        if (pollCount >= 20) {
           finishTask(signClicked, if (signClicked) "签到流程已执行" else "未稳定点到签到，请看日志或手动补点")
         }
       }
@@ -217,7 +231,7 @@ class AutoAssistService : AccessibilityService() {
 
   private fun finishTask(ok: Boolean, message: String) {
     phase = Phase.DONE
-    stopPolling()
+    clearTaskCallbacks()
     emit("done", message, ok)
     mainHandler.postDelayed({ phase = Phase.IDLE }, 500L)
   }
@@ -245,6 +259,24 @@ class AutoAssistService : AccessibilityService() {
       }
     }
     return out.take(limit)
+  }
+
+  private fun hasAnyKeyword(keywords: List<String>): Boolean {
+    for (root in getRoots()) {
+      var found = false
+      walk(root) { node ->
+        val hay = "${node.text ?: ""} ${node.contentDescription ?: ""}"
+        for (key in keywords) {
+          if (hay.contains(key) && hay.length <= 28) {
+            found = true
+            return@walk true
+          }
+        }
+        false
+      }
+      if (found) return true
+    }
+    return false
   }
 
   private fun clickByKeywords(keywords: List<String>): Boolean {
@@ -340,13 +372,16 @@ class AutoAssistService : AccessibilityService() {
     return tap(bounds.exactCenterX(), bounds.exactCenterY())
   }
 
-  private fun tapEarnTab(retry: Boolean = false): Boolean {
-    // 截图像素峰：去赚钱中心约 0.896；主点图标带 0.94，补点略上移防导航条遮挡
-    return if (!retry) {
-      tapRatio(0.90f, 0.94f)
-    } else {
-      tapRatio(0.89f, 0.93f)
-    }
+  private fun tapEarnTab(attempt: Int = 0): Boolean {
+    // 实机：去赚钱 ≈ x0.90；图标带 y≈0.94。多组微偏移提高命中
+    val points = arrayOf(
+      0.90f to 0.94f,
+      0.89f to 0.93f,
+      0.91f to 0.94f,
+      0.90f to 0.92f,
+    )
+    val (xr, yr) = points[attempt % points.size]
+    return tapRatio(xr, yr)
   }
 
   private fun tapRatio(xr: Float, yr: Float): Boolean {
@@ -358,10 +393,11 @@ class AutoAssistService : AccessibilityService() {
 
   private fun tap(x: Float, y: Float): Boolean {
     val now = System.currentTimeMillis()
-    if (now - lastClickAt < 160L) return false
+    if (now - lastClickAt < 220L) return false
     val path = Path()
     path.moveTo(x, y)
-    val stroke = GestureDescription.StrokeDescription(path, 0, 40)
+    // 略加长按压，部分机型过短手势会被吞掉
+    val stroke = GestureDescription.StrokeDescription(path, 0, 80)
     val gesture = GestureDescription.Builder().addStroke(stroke).build()
     val ok = dispatchGesture(gesture, null, null)
     if (ok) lastClickAt = now
