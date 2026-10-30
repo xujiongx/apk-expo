@@ -12,8 +12,10 @@ import {
 import {
   addProgressListener,
   isAccessibilityEnabled,
+  isIgnoringBatteryOptimizations,
   isNativeAutoAssistAvailable,
   openAccessibilitySettings,
+  openBatteryOptimizationSettings,
   startKuaishouCheckIn,
   stopAutoAssist,
 } from 'auto-assist';
@@ -45,6 +47,7 @@ export function KuaishouScreen({ onBack }: { onBack: () => void }) {
   const toast = useToast();
   const nativeReady = isNativeAutoAssistAvailable();
   const [enabled, setEnabled] = useState(false);
+  const [batteryIgnored, setBatteryIgnored] = useState(false);
   const [steps, setSteps] = useState<Step[]>(
     INITIAL_STEPS.map((s) => ({ ...s, status: 'idle' })),
   );
@@ -59,10 +62,16 @@ export function KuaishouScreen({ onBack }: { onBack: () => void }) {
   const refreshEnabled = async () => {
     if (!nativeReady) {
       setEnabled(false);
+      setBatteryIgnored(false);
       return;
     }
     try {
-      setEnabled(await isAccessibilityEnabled());
+      const [on, battery] = await Promise.all([
+        isAccessibilityEnabled(),
+        isIgnoringBatteryOptimizations(),
+      ]);
+      setEnabled(on);
+      setBatteryIgnored(battery);
     } catch {
       setEnabled(false);
     }
@@ -191,9 +200,9 @@ export function KuaishouScreen({ onBack }: { onBack: () => void }) {
           <Text style={styles.body}>
             {nativeReady
               ? enabled
-                ? '无障碍服务已开启，可以自动点击。'
-                : '自定义 APK 已就绪，但仍需在系统设置中开启无障碍。'
-              : '当前是 Expo Go / Web：只能打开应用，不能自动点击。请用 EAS 构建 APK。'}
+                ? '无障碍已开启。若只打开 App 不自动点，请看下方日志里的「界面可见文案」；没有文案说明快手限制了节点，将改用坐标点击。'
+                : '请先开启无障碍：系统设置 → 已安装的服务 → 工具箱自动签到。改原生逻辑后需重新安装 APK。'
+              : '当前是 Expo Go / Web：只能打开应用。请安装 EAS 构建的 APK。'}
           </Text>
           <View style={styles.metaRow}>
             <Chip
@@ -202,9 +211,22 @@ export function KuaishouScreen({ onBack }: { onBack: () => void }) {
             />
             <Chip
               label={enabled ? '无障碍已开' : '无障碍未开'}
-              tone={enabled ? 'success' : 'neutral'}
+              tone={enabled ? 'success' : 'warning'}
+            />
+            <Chip
+              label={batteryIgnored ? '已忽略电池优化' : '未忽略电池优化'}
+              tone={batteryIgnored ? 'success' : 'neutral'}
             />
           </View>
+        </Panel>
+
+        <Panel label="为什么无障碍会自己关掉">
+          <Text style={styles.body}>
+            1. 每次覆盖安装 / 升级 APK，安卓都会自动关闭该应用的无障碍，需要重新打开。{'\n'}
+            2. 小米 / 华为 / OPPO / vivo 等省电策略会杀后台服务。{'\n'}
+            3. 在系统里「强制停止」应用，无障碍也会被关。{'\n'}
+            建议：忽略电池优化，并在手机管家里允许自启动 / 关联启动。
+          </Text>
         </Panel>
 
         <View style={styles.actions}>
@@ -220,6 +242,18 @@ export function KuaishouScreen({ onBack }: { onBack: () => void }) {
             onPress={async () => {
               try {
                 await openAccessibilitySettings();
+              } catch (e) {
+                toast.error(e instanceof Error ? e.message : '无法打开设置');
+              }
+            }}
+          />
+          <Button
+            label="忽略电池优化"
+            variant="tonal"
+            onPress={async () => {
+              try {
+                await openBatteryOptimizationSettings();
+                toast.info('请在系统弹窗中允许忽略电池优化');
               } catch (e) {
                 toast.error(e instanceof Error ? e.message : '无法打开设置');
               }

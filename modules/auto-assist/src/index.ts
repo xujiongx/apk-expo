@@ -11,6 +11,8 @@ type Subscription = { remove: () => void };
 type AutoAssistNative = {
   isEnabled(): Promise<boolean>;
   openSettings(): Promise<void>;
+  isIgnoringBatteryOptimizations(): Promise<boolean>;
+  openBatteryOptimizationSettings(): Promise<void>;
   startKuaishouCheckIn(packageName: string): Promise<void>;
   stop(): Promise<void>;
   addListener(
@@ -51,6 +53,24 @@ export async function openAccessibilitySettings(): Promise<void> {
     throw new Error('当前包不支持无障碍自动化，请使用 EAS 构建的 APK');
   }
   return mod.openSettings();
+}
+
+export async function isIgnoringBatteryOptimizations(): Promise<boolean> {
+  const mod = getNative();
+  if (!mod) return false;
+  try {
+    return await mod.isIgnoringBatteryOptimizations();
+  } catch {
+    return false;
+  }
+}
+
+export async function openBatteryOptimizationSettings(): Promise<void> {
+  const mod = getNative();
+  if (!mod) {
+    throw new Error('当前包不支持该设置');
+  }
+  return mod.openBatteryOptimizationSettings();
 }
 
 export async function startKuaishouCheckIn(
