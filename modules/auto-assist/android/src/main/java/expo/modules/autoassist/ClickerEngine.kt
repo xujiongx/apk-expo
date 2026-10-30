@@ -70,6 +70,26 @@ object ClickerEngine {
     notifyState()
   }
 
+  /** 拖动改点位；不发状态通知，避免拖动中重建浮标 */
+  fun movePoint(index: Int, x: Float, y: Float): Boolean {
+    if (index !in points.indices) return false
+    points[index] = Point(x, y)
+    return true
+  }
+
+  /** 加载已保存方案（会停止当前循环） */
+  fun loadScheme(schemePoints: List<Point>, schemeIntervalMs: Long): String? {
+    if (schemePoints.isEmpty()) return "方案没有点位"
+    stopLoop()
+    points.clear()
+    points.addAll(schemePoints.take(20))
+    intervalMs = schemeIntervalMs
+    cursor = 0
+    state = State.READY
+    notifyState()
+    return null
+  }
+
   fun start(): String? {
     if (points.isEmpty()) return "请先选至少一个点击点位"
     if (AutoAssistService.get() == null) {

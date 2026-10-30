@@ -10,11 +10,17 @@
     },
     "preview": {
       "distribution": "internal",
+      "env": {
+        "EAS_USE_CACHE": "1"
+      },
       "android": {
         "buildType": "apk"
       }
     },
     "production": {
+      "env": {
+        "EAS_USE_CACHE": "1"
+      },
       "android": {
         "buildType": "app-bundle"
       }
