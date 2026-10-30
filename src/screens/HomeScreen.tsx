@@ -2,7 +2,7 @@ import { ScrollView, StyleSheet, Text, View } from 'react-native';
 import { colors, space, type } from '../theme';
 import { Avatar, ListRow, Screen, Section } from '../ui';
 
-export type ToolId = 'device' | 'kuaishou' | 'schedule';
+export type ToolId = 'device' | 'kuaishou' | 'schedule' | 'clicker';
 
 const TOOLS: {
   id: ToolId;
@@ -12,6 +12,14 @@ const TOOLS: {
   tone: 'primary' | 'tertiary' | 'neutral';
   category: string;
 }[] = [
+  {
+    id: 'clicker',
+    title: '自动点击器',
+    desc: '悬浮窗选多点，循环点击，可暂停/结束',
+    mark: '点',
+    tone: 'tertiary',
+    category: '自动化',
+  },
   {
     id: 'schedule',
     title: '定时提醒',

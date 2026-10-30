@@ -32,6 +32,8 @@ class AutoAssistService : AccessibilityService() {
     fun get(): AutoAssistService? = instanceRef?.get()
 
     fun startTask(packageName: String) {
+      // 与自动点击器互斥
+      ClickerEngine.stop()
       targetPackage = packageName
       val svc = get()
       if (svc == null) {
@@ -45,6 +47,11 @@ class AutoAssistService : AccessibilityService() {
     fun stopTask() {
       phase = Phase.IDLE
       get()?.stopPolling()
+    }
+
+    /** 供自动点击器等调用的屏幕坐标点击 */
+    fun performTap(x: Float, y: Float): Boolean {
+      return get()?.tap(x, y) ?: false
     }
   }
 

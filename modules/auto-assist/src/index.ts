@@ -13,6 +13,11 @@ type AutoAssistNative = {
   openSettings(): Promise<void>;
   isIgnoringBatteryOptimizations(): Promise<boolean>;
   openBatteryOptimizationSettings(): Promise<void>;
+  canDrawOverlays(): Promise<boolean>;
+  openOverlaySettings(): Promise<void>;
+  showClickerOverlay(): Promise<void>;
+  hideClickerOverlay(): Promise<void>;
+  isClickerOverlayShowing(): Promise<boolean>;
   startKuaishouCheckIn(packageName: string): Promise<void>;
   stop(): Promise<void>;
   addListener(
@@ -71,6 +76,48 @@ export async function openBatteryOptimizationSettings(): Promise<void> {
     throw new Error('当前包不支持该设置');
   }
   return mod.openBatteryOptimizationSettings();
+}
+
+export async function canDrawOverlays(): Promise<boolean> {
+  const mod = getNative();
+  if (!mod) return false;
+  try {
+    return await mod.canDrawOverlays();
+  } catch {
+    return false;
+  }
+}
+
+export async function openOverlaySettings(): Promise<void> {
+  const mod = getNative();
+  if (!mod) {
+    throw new Error('当前包不支持悬浮窗设置');
+  }
+  return mod.openOverlaySettings();
+}
+
+export async function showClickerOverlay(): Promise<void> {
+  const mod = getNative();
+  if (!mod) {
+    throw new Error('当前包不支持自动点击器，请使用 EAS 构建的 APK');
+  }
+  return mod.showClickerOverlay();
+}
+
+export async function hideClickerOverlay(): Promise<void> {
+  const mod = getNative();
+  if (!mod) return;
+  return mod.hideClickerOverlay();
+}
+
+export async function isClickerOverlayShowing(): Promise<boolean> {
+  const mod = getNative();
+  if (!mod) return false;
+  try {
+    return await mod.isClickerOverlayShowing();
+  } catch {
+    return false;
+  }
 }
 
 export async function startKuaishouCheckIn(
