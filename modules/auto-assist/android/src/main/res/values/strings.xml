@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+  <string name="auto_assist_label">工具箱自动签到</string>
+  <string name="auto_assist_description">用于工具箱自动打开快手极速版并完成签到点击。仅在你主动点击「自动签到」时工作。</string>
+</resources>

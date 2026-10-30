@@ -1,3 +1,7 @@
+packages:
+  - .
+  - modules/*
+
 # EAS/CI 非交互环境必须是明确的 true/false，不能留占位文案
 allowBuilds:
   dtrace-provider: false
