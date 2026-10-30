@@ -5,8 +5,12 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { DeviceLabScreen } from './src/screens/DeviceLabScreen';
 import { HomeScreen, type ToolId } from './src/screens/HomeScreen';
 import { KuaishouScreen } from './src/screens/KuaishouScreen';
+import { ScheduleScreen } from './src/screens/ScheduleScreen';
 import { colors } from './src/theme';
 import { ToastProvider } from './src/toast/ToastContext';
+
+// 注册前台通知展示策略（模块加载时执行一次）
+import './src/schedule/notifications';
 
 type Route = 'home' | ToolId;
 
@@ -17,9 +21,9 @@ export default function App() {
     const onBackPress = () => {
       if (route !== 'home') {
         setRoute('home');
-        return true; // 已处理，不退出应用
+        return true;
       }
-      return false; // 在首页再按返回，交给系统退出
+      return false;
     };
 
     const sub = BackHandler.addEventListener('hardwareBackPress', onBackPress);
@@ -33,6 +37,8 @@ export default function App() {
           <StatusBar style="dark" />
           {route === 'home' ? (
             <HomeScreen onOpen={setRoute} />
+          ) : route === 'schedule' ? (
+            <ScheduleScreen onBack={() => setRoute('home')} />
           ) : route === 'device' ? (
             <DeviceLabScreen onBack={() => setRoute('home')} />
           ) : (

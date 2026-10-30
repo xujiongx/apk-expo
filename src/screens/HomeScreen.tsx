@@ -2,16 +2,24 @@ import { ScrollView, StyleSheet, Text, View } from 'react-native';
 import { colors, space, type } from '../theme';
 import { Avatar, ListRow, Screen, Section } from '../ui';
 
-export type ToolId = 'device' | 'kuaishou';
+export type ToolId = 'device' | 'kuaishou' | 'schedule';
 
 const TOOLS: {
   id: ToolId;
   title: string;
   desc: string;
   mark: string;
-  tone: 'primary' | 'tertiary';
+  tone: 'primary' | 'tertiary' | 'neutral';
   category: string;
 }[] = [
+  {
+    id: 'schedule',
+    title: '定时提醒',
+    desc: '多少分钟后 / 指定时刻 / 每天定点发系统通知',
+    mark: '定',
+    tone: 'primary',
+    category: '效率',
+  },
   {
     id: 'kuaishou',
     title: '快手极速版签到',
@@ -25,7 +33,7 @@ const TOOLS: {
     title: '系统能力实验室',
     desc: '震动、电量、传感器、亮度等',
     mark: '系',
-    tone: 'primary',
+    tone: 'neutral',
     category: '开发 Demo',
   },
 ];

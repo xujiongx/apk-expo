@@ -11,15 +11,20 @@ flowchart TB
     Home[HomeScreen]
     Device[DeviceLabScreen]
     KS[KuaishouScreen]
+    Sched[ScheduleScreen]
     Toast[ToastProvider]
     Theme[theme / ui]
+    SchedLib[schedule/*]
     App --> Home
     App --> Device
     App --> KS
+    App --> Sched
     App --> Toast
     Home --> Theme
     Device --> Theme
     KS --> Theme
+    Sched --> Theme
+    Sched --> SchedLib
     KS --> Bridge
   end
 
@@ -57,10 +62,14 @@ flowchart TB
 当前**未使用 Expo Router**，用内存状态切换页面，便于 Demo 体量：
 
 ```
-home ──► device
+home ──► schedule
+  │
+  ├──► device
   │
   └──► kuaishou
 ```
+
+定时提醒：`src/schedule/`（AsyncStorage 任务列表 + `expo-notifications` 系统调度），UI 在 `ScheduleScreen`。
 
 - 子页按返回键 → 回首页（`BackHandler`）
 - 首页再按返回 → 交系统退出
@@ -95,7 +104,7 @@ stateDiagram-v2
   IDLE --> WAIT_APP: startTask
   WAIT_APP --> SKIP_ADS: ~500ms 后
   SKIP_ADS --> GO_EARN: 处理广告后立即进入
-  GO_EARN --> SIGN: 点击右下「去赚钱」Tab
+  GO_EARN --> SIGN: 点击「去赚钱」Tab（右数第 2）
   SIGN --> DONE: 点到签到 / 超时
   DONE --> IDLE: 短暂复位
   IDLE --> IDLE: stopTask
@@ -105,7 +114,7 @@ stateDiagram-v2
 | --- | --- |
 | `WAIT_APP` | `getLaunchIntent` 拉起目标包，抢点「跳过」等 |
 | `SKIP_ADS` | 关键词点广告 / 弹窗，一轮后进入赚钱 |
-| `GO_EARN` | 优先屏幕比例点击右下 Tab（文案常被屏蔽） |
+| `GO_EARN` | 先找文案「去赚钱」，否则点第 4 Tab（≈x0.70；最右是「我的」） |
 | `SIGN` | 关键词找签到；失败则上方区域坐标兜底 |
 | 超时 | 约 18s 强制 `DONE` |
 
@@ -113,7 +122,7 @@ stateDiagram-v2
 
 1. `AccessibilityNodeInfo` 关键词 + `ACTION_CLICK`（沿可点击父节点上溯）
 2. 节点中心 `dispatchGesture` 轻触
-3. 固定比例坐标（按实机截图校准，如赚钱 Tab ≈ `(0.90, 0.94)`）
+3. 固定比例坐标（赚钱 Tab ≈ `(0.70, 0.94)`，避免点到「我的」）
 
 轮询：赚钱 / 签到约 120ms，其它约 180ms；`onAccessibilityEvent` 也会推进一帧。
 

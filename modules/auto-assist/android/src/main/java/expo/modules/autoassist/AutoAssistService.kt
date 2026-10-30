@@ -175,11 +175,17 @@ class AutoAssistService : AccessibilityService() {
         }
       }
       Phase.GO_EARN -> {
-        // 停留在本阶段多次点 Tab，避免首屏未就绪点空后永远不再试
+        // 先试文案；失败再点第 4 个 Tab（右数第 2：去赚钱；最右是「我的」）
         if (pollCount == 1 || pollCount == 3 || pollCount == 5 || pollCount == 7) {
-          val ok = tapEarnTab(attempt = earnTapCount)
+          val byText = clickByKeywords(listOf("去赚钱", "去赚金"))
+          val ok = byText || tapEarnTab(attempt = earnTapCount)
           earnTapCount += 1
-          emit("earn", "点击赚钱 Tab (#$earnTapCount)${if (ok) "" else "（手势未接受，将重试）"}", ok)
+          emit(
+            "earn",
+            if (byText) "已点文案「去赚钱」(#$earnTapCount)"
+            else "点击赚钱 Tab(#$earnTapCount)${if (ok) "" else "（手势未接受）"}",
+            ok
+          )
         }
         // 已看到签到相关文案，或已点过几次并等待页面切换
         val signVisible = hasAnyKeyword(listOf("立即签到", "签到领金币", "今日签到", "签到"))
@@ -373,12 +379,13 @@ class AutoAssistService : AccessibilityService() {
   }
 
   private fun tapEarnTab(attempt: Int = 0): Boolean {
-    // 实机：去赚钱 ≈ x0.90；图标带 y≈0.94。多组微偏移提高命中
+    // 5 Tab：首页 / 精选 / 中心 / 去赚钱 / 我的
+    // 之前点 0.90 会进「我的」；去赚钱是右数第二个 ≈ x0.70
     val points = arrayOf(
-      0.90f to 0.94f,
-      0.89f to 0.93f,
-      0.91f to 0.94f,
-      0.90f to 0.92f,
+      0.70f to 0.94f,
+      0.68f to 0.93f,
+      0.72f to 0.94f,
+      0.70f to 0.92f,
     )
     val (xr, yr) = points[attempt % points.size]
     return tapRatio(xr, yr)
